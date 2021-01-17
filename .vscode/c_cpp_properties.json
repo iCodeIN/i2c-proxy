@@ -1,0 +1,21 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/src",
+                "/usr/include",
+                "/usr/local/include",
+                "/usr/src/kernels/5.10.6-200.fc33.x86_64/include/",
+                "/usr/lib/gcc/x86_64-redhat-linux/10/include/",
+                "/usr/src/kernels/5.10.6-200.fc33.x86_64/arch/x86/include/"
+            ],
+            "defines": [],
+            "compilerPath": "/usr/bin/gcc",
+            "cStandard": "gnu17",
+            "cppStandard": "gnu++14",
+            "intelliSenseMode": "linux-gcc-x64"
+        }
+    ],
+    "version": 4
+}
