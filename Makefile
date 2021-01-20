@@ -16,7 +16,7 @@ endif
 
 obj-m := src/main.o
 
-.PHONY: build clean modules_install
+.PHONY: build clean insmod rmmod log
 
 build:
 	mkdir -p $(INSTALL_MOD_PATH)
@@ -26,3 +26,12 @@ build:
 clean:
 	make -C $(KPATH) M=$(CURDIR) ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE) clean
 	rm -rf $(INSTALL_MOD_PATH)
+
+insmod:
+	sudo insmod $(INSTALL_MOD_PATH)/lib/modules/$(shell uname -r)/extra/src/main.ko
+
+rmmod:
+	sudo rmmod $(INSTALL_MOD_PATH)/lib/modules/$(shell uname -r)/extra/src/main.ko
+
+log:
+	journalctl -kr | head -n20
