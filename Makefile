@@ -14,6 +14,11 @@ else
 	$(error Unrecognised target $(TARGET))
 endif
 
+KO_PATH = $(INSTALL_MOD_PATH)/lib/modules/$(shell uname -r)/extra/src/main.ko
+
+VM_SSH_PREFIX = sshpass -p $(VM_PASS) 
+VM_CMD_PREFIX = sshpass -p $(VM_PASS) ssh -o StrictHostKeyChecking=no root@$(VM_TARGET)
+
 obj-m := src/main.o
 
 .PHONY: build clean insmod rmmod log
@@ -28,10 +33,15 @@ clean:
 	rm -rf $(INSTALL_MOD_PATH)
 
 insmod:
-	sudo insmod $(INSTALL_MOD_PATH)/lib/modules/$(shell uname -r)/extra/src/main.ko
+	$(VM_SSH_PREFIX) scp $(KO_PATH) root@$(VM_TARGET):~/main.ko
+	$(VM_CMD_PREFIX) insmod main.ko
 
 rmmod:
-	sudo rmmod $(INSTALL_MOD_PATH)/lib/modules/$(shell uname -r)/extra/src/main.ko
+	$(VM_CMD_PREFIX) rmmod main.ko
+	$(VM_CMD_PREFIX) rm main.ko
 
 log:
-	journalctl -kr | head -n20
+	$(VM_CMD_PREFIX) journalctl -kr | head -n20
+
+shell:
+	$(VM_CMD_PREFIX)
