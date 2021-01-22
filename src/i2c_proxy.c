@@ -26,6 +26,7 @@ static int init_driver(void);
 static int alloc_device(void);
 static int init_cdev(void);
 static int init_device(void);
+static void platform_device_release(struct device *);
 static void exit_driver(void);
 static void dealloc_device(void);
 static void exit_device(void);
@@ -167,13 +168,14 @@ static ssize_t device_fops_read(struct file *file, char __user *buf, size_t len,
 }
 
 static ssize_t device_fops_write(struct file *file, const char __user *buf, size_t len, loff_t *pos) {
+    int status;
     struct i2c_proxy_device *this_device = container_of(file->f_inode->i_cdev, struct i2c_proxy_device, cdev);
 	printk(KERN_INFO "i2c_proxy: Device file write\n");
 
-    int status = i2c_for_each_dev((void *)this_device, i2c_write_handler);
+    status = i2c_for_each_dev((void *)this_device, i2c_write_handler);
     switch (status) {
     case 0:
-        printk(KERN_ERR "i2c_proxy: No adapter found\n");
+        printk(KERN_ERR "i2c_proxy: No adapter/bus found\n");
         return -EIO;
     case 1:
         break;
@@ -186,9 +188,11 @@ static ssize_t device_fops_write(struct file *file, const char __user *buf, size
 }
 
 static int i2c_write_handler(struct device *dev, void *data) {
+    int status;
+    struct i2c_msg message = {0};
     struct i2c_proxy_device *this_device = (struct i2c_proxy_device *)data;
-    
     struct i2c_adapter *adapter = i2c_verify_adapter(dev);
+
     if (!adapter) {
         return 0;
     }
@@ -200,14 +204,12 @@ static int i2c_write_handler(struct device *dev, void *data) {
 	printk(KERN_INFO "i2c_proxy: Found adapter; attempting to send data using i2c bus %d at address 0x%X\n", this_device->bus, this_device->address);
 
     // Send a packet.
-    struct i2c_msg message = {
-        .flags = 0,
-        .addr = (u16)this_device->address,
-        .len = 1,
-        .buf = (u8 *)&this_device->data
-    };
+    message.flags = 0;
+    message.addr = (u16)this_device->address;
+    message.len = 1;
+    message.buf = (u8 *)&this_device->data;
 
-    int status = i2c_transfer(adapter, &message, 1);
+    status = i2c_transfer(adapter, &message, 1);
 	if (status < 0) {
         return status;
     }
@@ -304,6 +306,7 @@ static int init_device(void) {
     device->platform_device.id = PLATFORM_DEVID_NONE;
     device->platform_device.dev.devt = device->chrdev_region;
     device->platform_device.dev.groups = device_attr_groups;
+    device->platform_device.dev.release = platform_device_release;
 
     rc = platform_device_register(&device->platform_device);
     if (rc < 0) {
@@ -331,6 +334,9 @@ static int init_cdev(void) {
 }
 
 ///////////////////////////////////////
+
+static void platform_device_release(struct device *dev) {
+}
 
 static void exit_driver(void) {
     platform_driver_unregister(&driver.platform_driver);

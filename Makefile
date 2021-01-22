@@ -1,4 +1,12 @@
+# Define the environment variables:
+# - EXEC_PASSWORD
+# - EXEC_TARGET
+# in order to use the insmod, rmmod, log and shell recipes.
+
+# Change this as needed.
 TARGET = remote-arm
+
+##########################################
 
 ifeq ($(TARGET),local)
 	KPATH = /lib/modules/$(shell uname -r)/build
@@ -12,14 +20,12 @@ else ifeq ($(TARGET),remote-arm)
 	INSTALL_MOD_PATH = $(CURDIR)/install_arm
 	ARCH = arm
 	VERSION = 5.11.0-rc4
-else
-	$(error Unrecognised target $(TARGET))
 endif
 
 KO_PATH = $(INSTALL_MOD_PATH)/lib/modules/$(VERSION)/extra/src/i2c_proxy.ko
 
-VM_SSH_PREFIX = sshpass -p $(VM_PASS) 
-VM_CMD_PREFIX = sshpass -p $(VM_PASS) ssh -o StrictHostKeyChecking=no root@$(VM_TARGET)
+VM_SSH_PREFIX = sshpass -p $(EXEC_PASSWORD) 
+VM_CMD_PREFIX = sshpass -p $(EXEC_PASSWORD) ssh -o StrictHostKeyChecking=no root@$(EXEC_TARGET)
 
 obj-m := src/i2c_proxy.o
 
@@ -35,7 +41,7 @@ clean:
 	rm -rf $(INSTALL_MOD_PATH)
 
 insmod:
-	$(VM_SSH_PREFIX) scp $(KO_PATH) root@$(VM_TARGET):~/i2c_proxy.ko
+	$(VM_SSH_PREFIX) scp $(KO_PATH) root@$(EXEC_TARGET):~/i2c_proxy.ko
 	$(VM_CMD_PREFIX) insmod i2c_proxy.ko
 
 rmmod:
