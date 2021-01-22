@@ -5,11 +5,15 @@
 #include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
+#include <linux/i2c.h>
 
+static int i2c_write_handler(struct device *, void *);
 static ssize_t i2c_bus_show(struct device *, struct device_attribute *, char *);
 static ssize_t i2c_bus_store(struct device *, struct device_attribute *, const char *, size_t);
 static ssize_t i2c_address_show(struct device *, struct device_attribute *, char *);
 static ssize_t i2c_address_store(struct device *, struct device_attribute *, const char *, size_t);
+static ssize_t i2c_data_show(struct device *, struct device_attribute *, char *);
+static ssize_t i2c_data_store(struct device *, struct device_attribute *, const char *, size_t);
 static int driver_probe(struct platform_device *);
 static int driver_remove(struct platform_device *);
 static int device_fops_open(struct inode *, struct file *);
@@ -43,6 +47,7 @@ struct i2c_proxy_device
     struct platform_device platform_device;
     int address;
     int bus;
+    int data;
 };
 
 struct i2c_proxy_driver
@@ -76,10 +81,12 @@ static struct file_operations device_fops =
 
 static DEVICE_ATTR(i2c_bus, 0644, i2c_bus_show, i2c_bus_store);
 static DEVICE_ATTR(i2c_address, 0644, i2c_address_show, i2c_address_store);
+static DEVICE_ATTR(i2c_data, 0644, i2c_data_show, i2c_data_store);
 
 static struct attribute *device_attrs[] = {
       &dev_attr_i2c_address.attr,
       &dev_attr_i2c_bus.attr,
+      &dev_attr_i2c_data.attr,
       NULL,
 };
 
@@ -120,6 +127,19 @@ static ssize_t i2c_address_store(struct device *dev, struct device_attribute *at
     return count;
 }
 
+static ssize_t i2c_data_show(struct device *dev, struct device_attribute *attr, char *buf) {
+    struct platform_device *this_platform_device = container_of(dev, struct platform_device, dev);
+    struct i2c_proxy_device *this_device = container_of(this_platform_device, struct i2c_proxy_device, platform_device);
+    return sprintf(buf, "0x%X\n", this_device->data);
+}
+
+static ssize_t i2c_data_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count) {
+    struct platform_device *this_platform_device = container_of(dev, struct platform_device, dev);
+    struct i2c_proxy_device *this_device = container_of(this_platform_device, struct i2c_proxy_device, platform_device);
+    sscanf(buf, "0x%X", &this_device->data);
+    return count;
+}
+
 static int driver_probe(struct platform_device *platform_device) {
     return strcmp(platform_device->name, "i2c_proxy") != 0;
 }
@@ -143,13 +163,58 @@ static int device_fops_release(struct inode *inode, struct file *file) {
 static ssize_t device_fops_read(struct file *file, char __user *buf, size_t len, loff_t *pos) {
     //struct i2c_proxy_device *this_device = container_of(file->f_inode->i_cdev, struct i2c_proxy_device, cdev);
 	printk(KERN_INFO "i2c_proxy: Device file read\n");
-    return -EIO;
+    return -EINVAL;
 }
 
 static ssize_t device_fops_write(struct file *file, const char __user *buf, size_t len, loff_t *pos) {
-    //struct i2c_proxy_device *this_device = container_of(file->f_inode->i_cdev, struct i2c_proxy_device, cdev);
+    struct i2c_proxy_device *this_device = container_of(file->f_inode->i_cdev, struct i2c_proxy_device, cdev);
 	printk(KERN_INFO "i2c_proxy: Device file write\n");
-    return -EIO;
+
+    int status = i2c_for_each_dev((void *)this_device, i2c_write_handler);
+    switch (status) {
+    case 0:
+        printk(KERN_ERR "i2c_proxy: No adapter found\n");
+        return -EIO;
+    case 1:
+        break;
+    default:
+        printk(KERN_ERR "i2c_proxy: Error sending data: %d\n", status);
+        return -EIO;
+    }
+
+    return (ssize_t)len;
+}
+
+static int i2c_write_handler(struct device *dev, void *data) {
+    struct i2c_proxy_device *this_device = (struct i2c_proxy_device *)data;
+    
+    struct i2c_adapter *adapter = i2c_verify_adapter(dev);
+    if (!adapter) {
+        return 0;
+    }
+
+    // Verify its the right i2c bus.
+    if (i2c_adapter_id(adapter) != this_device->bus) {
+        return 0;
+    }
+	printk(KERN_INFO "i2c_proxy: Found adapter; attempting to send data using i2c bus %d at address 0x%X\n", this_device->bus, this_device->address);
+
+    // Send a packet.
+    struct i2c_msg message = {
+        .flags = 0,
+        .addr = (u16)this_device->address,
+        .len = 1,
+        .buf = (u8 *)&this_device->data
+    };
+
+    int status = i2c_transfer(adapter, &message, 1);
+	if (status < 0) {
+        return status;
+    }
+    printk(KERN_INFO "i2c_proxy: Sent data ok!\n");
+
+    // Stop iterating.
+    return 1;
 }
 
 ///////////////////////////////////////

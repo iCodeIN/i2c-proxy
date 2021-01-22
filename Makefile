@@ -1,20 +1,22 @@
-TARGET = local
+TARGET = remote-arm
 
 ifeq ($(TARGET),local)
 	KPATH = /lib/modules/$(shell uname -r)/build
 	CROSS_COMPILE =
 	INSTALL_MOD_PATH = $(CURDIR)/install_x86
 	ARCH = x86
+	VERSION = $(shell uname -r)
 else ifeq ($(TARGET),remote-arm)
 	KPATH = ~/Development/build-linux
 	CROSS_COMPILE = arm-linux-gnueabihf-
 	INSTALL_MOD_PATH = $(CURDIR)/install_arm
 	ARCH = arm
+	VERSION = 5.11.0-rc4
 else
 	$(error Unrecognised target $(TARGET))
 endif
 
-KO_PATH = $(INSTALL_MOD_PATH)/lib/modules/$(shell uname -r)/extra/src/main.ko
+KO_PATH = $(INSTALL_MOD_PATH)/lib/modules/$(VERSION)/extra/src/main.ko
 
 VM_SSH_PREFIX = sshpass -p $(VM_PASS) 
 VM_CMD_PREFIX = sshpass -p $(VM_PASS) ssh -o StrictHostKeyChecking=no root@$(VM_TARGET)
