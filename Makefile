@@ -16,12 +16,12 @@ else
 	$(error Unrecognised target $(TARGET))
 endif
 
-KO_PATH = $(INSTALL_MOD_PATH)/lib/modules/$(VERSION)/extra/src/main.ko
+KO_PATH = $(INSTALL_MOD_PATH)/lib/modules/$(VERSION)/extra/src/i2c_proxy.ko
 
 VM_SSH_PREFIX = sshpass -p $(VM_PASS) 
 VM_CMD_PREFIX = sshpass -p $(VM_PASS) ssh -o StrictHostKeyChecking=no root@$(VM_TARGET)
 
-obj-m := src/main.o
+obj-m := src/i2c_proxy.o
 
 .PHONY: build clean insmod rmmod log
 
@@ -35,12 +35,12 @@ clean:
 	rm -rf $(INSTALL_MOD_PATH)
 
 insmod:
-	$(VM_SSH_PREFIX) scp $(KO_PATH) root@$(VM_TARGET):~/main.ko
-	$(VM_CMD_PREFIX) insmod main.ko
+	$(VM_SSH_PREFIX) scp $(KO_PATH) root@$(VM_TARGET):~/i2c_proxy.ko
+	$(VM_CMD_PREFIX) insmod i2c_proxy.ko
 
 rmmod:
-	$(VM_CMD_PREFIX) rmmod main.ko
-	$(VM_CMD_PREFIX) rm main.ko
+	$(VM_CMD_PREFIX) rmmod i2c_proxy.ko
+	$(VM_CMD_PREFIX) rm i2c_proxy.ko
 
 log:
 	$(VM_CMD_PREFIX) journalctl -kr | head -n20

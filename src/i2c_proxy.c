@@ -298,6 +298,8 @@ static int init_device(void) {
 	printk(KERN_INFO "i2c_proxy: Registered chrdev region: major = %d, minor = %d\n", MAJOR(device->chrdev_region), MINOR(device->chrdev_region));
 
     device->address = 0x20;
+    device->bus = 2;
+    device->data = 0x42;
     device->platform_device.name = "i2c_proxy";
     device->platform_device.id = PLATFORM_DEVID_NONE;
     device->platform_device.dev.devt = device->chrdev_region;
